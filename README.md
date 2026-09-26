@@ -1,6 +1,6 @@
 # SRT Translator
 
-A desktop app (PyQt6) that translates Serbian `.srt` subtitle files to English, tuned for YouTube cooking videos. It enforces hard line-length and characters-per-second (CPS) limits so the subtitles stay readable, and it uses the OpenRouter API for translation.
+A desktop app (PyQt6) that translates `.srt` subtitle files between **any languages** — the source/target pair and the style are defined by editable prompts. It is tuned for YouTube cooking videos, enforces hard line-length and characters-per-second (CPS) limits, and uses the OpenRouter API for translation.
 
 ![Python](https://img.shields.io/badge/python-3.9%2B-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
@@ -8,7 +8,7 @@ A desktop app (PyQt6) that translates Serbian `.srt` subtitle files to English, 
 
 ## Features
 
-- Serbian → English subtitle translation via **OpenRouter** (works with any OpenRouter model).
+- **Any → Any** language subtitle translation via **OpenRouter** (direction and style are set by the prompts; works with any OpenRouter model).
 - Strict **line-length** rules (max ~89 chars, 45+45 splits) and **CPS** enforcement with automatic shortening.
 - **Manual retranslation** of individual blocks (right-click a row).
 - **Line-splitting mode** for turning long lines into two balanced lines.

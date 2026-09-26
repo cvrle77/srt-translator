@@ -1,6 +1,7 @@
 """
 SRT Subtitle Translator with Strict Line Splitting
-A PyQt6 desktop application for translating Serbian SRT files to English
+A PyQt6 desktop application for translating SRT subtitle files between any
+languages (the source/target language pair is defined by the editable prompts),
 with enforced character-count-based line splitting rules.
 
 Supports OpenRouter API provider.
@@ -840,13 +841,13 @@ class Translator:
     
     def translate_blocks(self, block_texts: List[str]) -> List[str]:
         """
-        Translate a list of Serbian text blocks to English.
-        
+        Translate subtitle blocks using the configured prompt.
+
         Args:
-            block_texts: List of Serbian text strings (one per subtitle block)
-            
+            block_texts: List of source-language strings (one per subtitle block)
+
         Returns:
-            List of English translations (same order)
+            List of translated strings (same order)
             
         Raises:
             Exception: If API call fails
@@ -2148,7 +2149,7 @@ class SettingsDialog(QDialog):
         sys_layout.setSpacing(15)
         sys_layout.setContentsMargins(20, 20, 20, 20)
         
-        sys_desc = QLabel("Main instructions for the AI translator - defines tone, style, rules, and formatting for Serbian to English translation")
+        sys_desc = QLabel("Main instructions for the AI translator - defines source/target language, tone, style, rules, and formatting")
         sys_desc.setStyleSheet(desc_style)
         sys_desc.setWordWrap(True)
         sys_layout.addWidget(sys_desc)
