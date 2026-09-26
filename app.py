@@ -7,6 +7,8 @@ with enforced character-count-based line splitting rules.
 Supports OpenRouter API provider.
 """
 
+__version__ = "1.0.0"
+
 import sys
 import json
 import os
@@ -3395,7 +3397,7 @@ class MainWindow(QMainWindow):
         t1 = time.time()
         print(f"[DEBUG STARTUP] super().__init__: {t1-t0:.3f}s")
         
-        self.setWindowTitle(self.center_title_text("SRT Subtitle Translator"))
+        self.setWindowTitle(self.center_title_text(f"SRT Subtitle Translator v{__version__}"))
         self.resize(1200, 700)
         # Create a transparent icon to remove default
         transparent_pixmap = QPixmap(1, 1)
@@ -3838,7 +3840,7 @@ class MainWindow(QMainWindow):
         self.progress_bar.setStyleSheet("QProgressBar { border: 1px solid #ccc; border-radius: 3px; text-align: center; } QProgressBar::chunk { background-color: #4CAF50; }")
         
         self.status_bar.addPermanentWidget(self.progress_bar)
-        self.status_bar.showMessage("Ready")
+        self.status_bar.showMessage(f"Ready — v{__version__}")
     
     # ----------------------------------------------------------------
     # Table helpers
