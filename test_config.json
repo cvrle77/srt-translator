@@ -1,0 +1,11 @@
+{
+  "prompts": {
+    "translator_system": "Translate exactly as instructed. Every sentence must end with 'TEST RULE WORKED'.",
+    "translator_user_template": "Translate these blocks:\n\n{text}",
+    "shorten_cps_system_template": "Shorten text to {target_chars} characters. Every result must contain 'SHORTENED TEST'.",
+    "shorten_long_system": "Shorten text to 75-80 characters. Every result must contain 'LONG SHORTEN TEST'."
+  },
+  "openrouter_api_key": "",
+  "openrouter_referer": "",
+  "openrouter_app_title": ""
+}

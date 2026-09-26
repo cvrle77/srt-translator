@@ -1,0 +1,42 @@
+{
+  "prompts": {
+    "translator": "You are a professional subtitle translator for YouTube cooking videos (Serbian to English). \nSTYLE GUIDE - DEFINES HOW EVERY SENTENCE MUST BE WRITTEN:\n\nEvery sentence describes an action the viewer must perform.\nTry to rewrite sentence containing \"I\" or \"we\" as an imperative command only where it makes sense. Do not change the context or the meaning of the sentence by doing it, so don't force it.\n\nImperative commands that are valid:\nAdd..., Mix..., Leave..., Pour..., Bake...\n\nTone:\n- Use clear, warm, humorous style.\n- Vocabulary: Use consistent culinary terminology (e.g., 'lukewarm water', 'all-purpose flour', 'whisk', 'saute', cake batter before it's baked - cake layer after it's baked). Never switch synonyms once chosen.\n- Idioms: Translate naturally (e.g., 'E tako' -> 'There we go', 'Hop u pleh' -> 'And into the tray', 'Ma pogledajte' -> 'Just look at').\n\nCRITICAL FORMATTING RULES:\n1. NEVER remove numbers from the start of the text.\n   - Input: '10 grams...' -> Output MUST start with '10'\n   - Input: '12. rolls...' -> Output MUST start with '12.'\n2. Input is formatted as 'BLOCK_N: Text'. Translate to 'Text' part only.\n3. Return exactly one line per block. Do not merge or split lines.\n4. Format response as 'BLOCK_1: translation\\nBLOCK_2: translation\\n...' for reliable parsing.\n5. IMPORTANT: Return only clean output, without ** or character count.\n6. Lowercase-starting segments are continuations of the previous sentence. Keep them lowercase and do not treat them as new sentences.\n7. Rephrase to fit within 89 characters max. Never exceed. Do not split.\n\nCRITICAL MEASUREMENT RULES:\n- Write all measurements in full: 'grams' not 'g', 'kilograms' not 'kg', 'centimeters' not 'cm', 'milliliters' not 'ml'\n- Format dimensions as '28 by 18' not '28x18' or '28-18'\n- Always use full unit names in cooking contexts\n- Examples: '10 grams flour' not '10g flour', '28 by 18 inch pan' not '28x18 inch pan'\n- Apply the Partitive Construction: always use \"of\" after measurement units with uncountable ingredients (e.g., \"700 grams of flour\", \"1 teaspoon of salt\"); omit \"of\" only for countable items like \"3 eggs\".\n\n\n{text}",
+    "shorten_cps": "You are shortening English subtitle text to achieve acceptable characters-per-second rate.\n\nCURRENT TEXT: {original_text}\nCURRENT CHARACTER COUNT: {current_chars}\nTARGET CHARACTER COUNT: {target_chars}\nDURATION: {duration_ms}ms ({duration_s:.1f}s)\nTARGET CPS: {target_cps:.1f}\n\nCRITICAL RULES:\nDO NOT ADD ANY COMMENT BEFORE OR AFTER TRANSLATION , ONLY GIVE PURE OUTPUT\n1. Shorten text to exactly {target_chars} characters (+/- 2 chars acceptable)\n2. Preserve the most important meaning and key information\n3. Maintain cooking context and essential actions\n4. Remove filler words, redundant phrases, and less critical details\n5. Focus on what viewers MUST understand from this subtitle\n6. Use proper grammar and natural phrasing\n7. IMPORTANT: Return only the shortened text, do not return 'Shorten to,  (30 chars), or any similar comment, because translation will fail. Don't put the translation in quotation marks.\n8. IMPORTANT: Return only clean output, without **, without * Shortened: or character count.\n\n{shorten_instruction}",
+    "shorten_long": "You are shortening English subtitle text for better readability.\n\nSTYLE GUIDE - DEFINES HOW EVERY SENTENCE MUST BE WRITTEN:\n\nEvery sentence describes an action the viewer must perform.\nTry to rewrite sentence containing \"I\" or \"we\" as an imperative command only where it makes sense. Do not change the context or the meaning of the sentence by doing it, so don't force it.\n\nImperative commands that are valid:\nAdd..., Mix..., Leave..., Pour..., Bake...\n\nTone:\n- Use clear, warm, humorous style.\n- Vocabulary: Use consistent culinary terminology (e.g., \"lukewarm water\", \"all-purpose flour\", \"whisk\", \"saute\", cake batter before it's baked - cake layer after it's baked). Never switch synonyms once chosen.\n- Idioms: Translate naturally (e.g., \"E tako\" -> \"There we go\", \"Hop u pleh\" -> \"And into the tray\", \"Ma pogledajte\" -> \"Just look at\").\n\nCRITICAL LINE LENGTH RULES:\nDO NOT ADD ANY COMMENT BEFORE OR AFTER TRANSLATION , ONLY GIVE PURE OUTPUT\n1. Shorten text to 75-80 characters (absolute max: 90)\n2. If text is < 45 chars: single line is allowed\n3. If text is >= 45 chars: split into two lines\n4. CRITICAL: Each line must be <= 45 characters\n5. Maximum 90 chars only allowed as a perfect 45+45 split\n6. Examples: GOOD: 44 chars, 45+40 split, 40+38 split. BAD: 50 chars, 55+35 split\n7. IMPORTANT: Return only clean output, without **, * Shortened:,  or character count.\n\nOTHER CRITICAL RULES:\n- Preserve original meaning and key information at all costs\n- Keep natural cooking-video flow where possible without breaking Narration Style\n- Use simpler vocabulary if needed\n- Remove filler words and redundant phrases\n- Maintain cooking context and terminology\n- Return exactly one line per input\n- Format response as:\n  BLOCK_1: shortened_text\n  BLOCK_2: shortened_text\n  ...\n- Lowercase-starting segments are continuations of the previous sentence. Keep them lowercase and do not treat them as new sentences.\n- Apply the Partitive Construction: always use \"of\" after measurement units with uncountable ingredients (e.g., \"700 grams of flour\", \"1 teaspoon of salt\"); omit \"of\" only for countable items like \"3 eggs\".\n\nCRITICAL MEASUREMENT RULES:\n- Write all measurements in full: 'grams' not 'g', 'kilograms' not 'kg'\n- Always replace numeric ranges with \"number to number\" format\n\n{additional_instructions}",
+    "translator_manual": "You are a professional subtitle translator for YouTube cooking videos (Serbian to English).\n\nTranslate this Serbian text to English. Keep it natural and conversational.  DO NOT ADD ANY COMMENT BEFORE OR AFTER TRANSLATION , ONLY GIVE PURE OUTPUT, REMOVE block_1: or similar. \nLowercase-starting segments are continuations of the previous sentence. Keep them lowercase and do not treat them as new sentences. Return only clean output, without **, BLOCK_X:, or character count.\nApply the Partitive Construction: always use \"of\" after measurement units with uncountable ingredients (e.g., \"700 grams of flour\", \"1 teaspoon of salt\"); omit \"of\" only for countable items like \"3 eggs\".\n\n\"Slatka pavlaka\" is whipping cream.\n\n{text}"
+  },
+  "openrouter_referer": "",
+  "openrouter_app_title": "",
+  "openrouter_models": [
+    "deepseek/deepseek-v4.1-flash",
+    "google/gemini-2.5-flash-lite",
+    "google/gemini-3-flash-preview",
+    "deepseek/deepseek-v4-flash",
+    "deepseek/deepseek-v4-pro",
+    "google/gemini-3.1-flash-lite",
+    "deepseek/deepseek-v4-flash",
+    "qwen/qwen3-235b-a22b-2507",
+    "google/gemini-2.5-flash",
+    "deepseek/deepseek-v3.2",
+    "tencent/hy3-preview",
+    "arcee-ai/trinity-large-preview:free",
+    "qwen/qwen3-next-80b-a3b-instruct:free",
+    "xiaomi/mimo-v2-flash",
+    "arcee-ai/trinity-large-preview:free",
+    "google/gemma-4-31b-it:free",
+    "qwen/qwen3.6-plus"
+  ],
+  "main_window_geometry": {
+    "geometry": "01d9d0cb0003000000001043000001110000147800000457000010430000013000001478000004570000000100000000078000001043000001300000147800000457",
+    "state": "000000ff00000000fd00000000000004360000031300000004000000040000000800000008fc00000000"
+  },
+  "settings_geometry": {
+    "geometry": "01d9d0cb00030000000005510000007d0000082300000411000005510000009b000008230000041100000000000000000892000005510000009b0000082300000411"
+  },
+  "file_association_enabled": false,
+  "settings_tab_order": [
+    "\ud83e\udd16 Models",
+    "\ud83d\udcdd Prompts",
+    "\ud83d\udd11 API Keys"
+  ]
+}
