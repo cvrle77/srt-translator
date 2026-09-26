@@ -1122,7 +1122,7 @@ class Translator:
             return []
         
         # Build user message with all texts
-        user_message = "Shorten these cooking subtitles to meet CPS requirements:\n\n"
+        user_message = "Shorten these subtitles to meet CPS requirements:\n\n"
         for i, item in enumerate(blocks_to_shorten, 1):
             user_message += f"BLOCK_{i}: Shorten to {item['target_chars']} chars - {item['text']}\n"
         
@@ -1234,7 +1234,7 @@ class Translator:
         
         print(f"DEBUG: Using CPS shorten prompt: {system_message[:100]}...")
         
-        user_message = f"Shorten this cooking subtitle to {target_chars} characters:\n\n{original_text}"
+        user_message = f"Shorten this subtitle to {target_chars} characters:\n\n{original_text}"
         
         # Use same API logic as other methods
         if self.provider == "openrouter":
