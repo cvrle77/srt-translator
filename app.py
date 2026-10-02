@@ -1118,8 +1118,14 @@ class Translator:
                 block_idx = long_indices[i] + 1
                 print(f"{block_idx}: '{shortened}' - Long shorten Output")
             
-            # Replace problematic translations with shortened versions
-            for idx, shortened in zip(long_indices, shortened_versions):
+            # Replace problematic translations with shortened versions, but reject
+            # rewrites that dropped too much meaning (far below the 75-80 target).
+            for idx, original, shortened in zip(long_indices, long_blocks, shortened_versions):
+                orig_len = len(original.replace('\n', '').strip())
+                new_len = len(shortened.replace('\n', '').strip())
+                if not shortened.strip() or new_len < 45 or new_len >= orig_len:
+                    print(f"{idx + 1}: long-shortening rejected ({orig_len} -> {new_len} chars) - keeping original")
+                    continue
                 shortened_translations[idx] = shortened
         
         return shortened_translations, long_indices
@@ -1199,9 +1205,13 @@ class Translator:
                 # Cannot extend (or not allowed), need to shorten text - collect for batch processing
                 target_chars = int(18.0 * (block.duration_ms / 1000))
                 target_chars = max(10, min(target_chars, 85))
+                # Source text gives the model the original meaning to preserve, so
+                # an already-lossy translation is not shortened even further.
+                source_text = " ".join(block.original_text_lines)
                 blocks_to_shorten.append({
                     'block_idx': block_idx,
                     'text': original_text,
+                    'source_text': source_text,
                     'target_chars': target_chars,
                     'duration_ms': block.duration_ms
                 })
@@ -1221,6 +1231,22 @@ class Translator:
                 block_idx = result['block_idx']
                 block_num = blocks[block_idx].index
                 new_text = result['shortened_text']
+
+                # Safeguard against over-shortening: if the model dropped too much
+                # meaning (result too short) or failed to shorten, keep the longer
+                # but faithful translation and let timestamp extension handle CPS.
+                orig_text = blocks[block_idx].translated_text
+                orig_len = len(orig_text.replace('\n', '').strip())
+                new_len = len(new_text.replace('\n', '').strip())
+                min_acceptable = min(int(result['target_chars'] * 0.7), orig_len)
+
+                if not new_text.strip() or new_len < min_acceptable or new_len >= orig_len:
+                    print(f"{block_num}: shortening rejected ({orig_len} -> {new_len} chars, target {result['target_chars']}) - keeping original")
+                    blocks[block_idx].was_shortened = False
+                    placeholder_idx = blocks_to_shorten_indices.index(block_idx)
+                    shortened_texts[placeholder_idx] = orig_text
+                    continue
+
                 print(f"{block_num}: '{new_text}' - CPS shorten Output")
                 blocks[block_idx].translated_text = new_text
                 blocks[block_idx].was_shortened = True
@@ -1245,10 +1271,19 @@ class Translator:
         if not blocks_to_shorten:
             return []
         
-        # Build user message with all texts
-        user_message = "Shorten these subtitles to meet CPS requirements:\n\n"
+        # Build user message with source context so meaning is preserved
+        user_message = (
+            "Shorten each subtitle to roughly the target character count without losing the "
+            "source meaning. Only remove filler/redundant words; never drop a key action, "
+            "ingredient or instruction.\n\n"
+        )
         for i, item in enumerate(blocks_to_shorten, 1):
-            user_message += f"BLOCK_{i}: Shorten to {item['target_chars']} chars - {item['text']}\n"
+            user_message += (
+                f"BLOCK_{i}: Target ~{item['target_chars']} chars\n"
+                f"SOURCE: {item.get('source_text', '')}\n"
+                f"CURRENT TRANSLATION: {item['text']}\n\n"
+            )
+        user_message += "Return exactly one line per block as 'BLOCK_1: shortened text' and nothing else.\n"
         
         # Use same API logic
         if self.provider == "openrouter":
@@ -1264,8 +1299,12 @@ class Translator:
     def _shorten_batch_openrouter(self, user_message: str, blocks_to_shorten: List[dict]) -> List[dict]:
         """Batch shorten texts using OpenRouter API."""
         system_message = (
-            "You are shortening English subtitle text to achieve acceptable characters-per-second rate. "
-            "Shorten each text to the specified character count while preserving meaning."
+            "You are shortening English subtitle text to achieve an acceptable characters-per-second rate. "
+            "You are given the SOURCE (original language) line and its CURRENT TRANSLATION. "
+            "Shorten the CURRENT TRANSLATION to roughly the target character count while preserving the "
+            "source meaning. Only remove filler and redundant words. NEVER drop a key action, ingredient, "
+            "condition or instruction. Output only the shortened translation for each block, one line per "
+            "block, formatted as 'BLOCK_N: text'. NO comments and NO character counts."
         )
         
         headers = {
@@ -1437,7 +1476,9 @@ class Translator:
             "3. If text is ≥ 45 chars: it will be split into two lines\n"
             "4. CRITICAL: Each line must be ≤ 45 characters after splitting\n"
             "5. Maximum 90 chars only achievable as perfect 45+45 split\n"
-            "6. Examples: GOOD: 44 chars, 45+40 split, 40+38 split. BAD: 50 chars, 55+35 split"
+            "6. Examples: GOOD: 44 chars, 45+40 split, 40+38 split. BAD: 50 chars, 55+35 split\n"
+            "7. PRESERVE MEANING: only remove filler/redundant words. NEVER drop a key action, "
+            "ingredient, condition or instruction. Keep full grammatical sentences."
         )
         
         user_message = base_prompt.format(additional_instructions=additional_instructions) + "\n\n" + "Shorten these translations to 75-80 characters (max 90):\n\n"
