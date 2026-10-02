@@ -763,6 +763,47 @@ class LineSplitter:
         return cleaned
 
 
+def match_sentence_case(text: str, prev_text: Optional[str]) -> str:
+    """
+    Align the capitalization of a block's first letter with its sentence context.
+
+    If the previous block ends a sentence (. ! ? …) the new block starts a new
+    sentence and its first letter is upper-cased; otherwise it is a continuation
+    of the previous sentence and its first letter is lower-cased.
+
+    Args:
+        text: Translated text of the current block.
+        prev_text: Translated text of the immediately preceding block (or None).
+
+    Returns:
+        Text with the first letter's case adjusted. Blocks that begin with a
+        number are returned unchanged (e.g. "20 minutes later").
+    """
+    if not text:
+        return text
+
+    # Find the first letter, ignoring leading spaces and opening punctuation.
+    letter_idx = None
+    for i, ch in enumerate(text):
+        if ch.isalpha():
+            letter_idx = i
+            break
+        if ch.isdigit():
+            # Block starts with a number - don't touch its wording.
+            return text
+
+    if letter_idx is None:
+        return text
+
+    prev = (prev_text or "").rstrip()
+    # Ignore trailing closing quotes/brackets when inspecting the ending.
+    prev_core = prev.rstrip('"\'”’)]}')
+    starts_sentence = (prev_core == "") or (prev_core[-1] in ".!?…")
+
+    fixed = text[letter_idx].upper() if starts_sentence else text[letter_idx].lower()
+    return text[:letter_idx] + fixed + text[letter_idx + 1:]
+
+
 # ============================================================================
 # OpenRouter Translator
 # ============================================================================
@@ -3350,6 +3391,14 @@ class SingleBlockRetranslationWorker(QThread):
                     shortened_cps = True
                     updated_block.was_shortened = True
             
+            # Step f: Match capitalization to the previous block's sentence context
+            prev_text = None
+            for b in self.all_blocks:
+                if b.index == updated_block.index - 1:
+                    prev_text = b.translated_text
+                    break
+            updated_block.translated_text = match_sentence_case(updated_block.translated_text, prev_text)
+
             # Step f: Apply line splitting
             updated_block.translated_text = LineSplitter.split_text(updated_block.translated_text)
             
@@ -5216,6 +5265,10 @@ class MainWindow(QMainWindow):
             # Apply shorten_long_translations
             translations, _ = translator.shorten_long_translations(translations)
             cleaned = translations[0]
+
+            # Match capitalization to the previous block's sentence context
+            prev_text = self.blocks[row - 1].translated_text if row > 0 else None
+            cleaned = match_sentence_case(cleaned, prev_text)
 
             block.translated_text = cleaned
 
