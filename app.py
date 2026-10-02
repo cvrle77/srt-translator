@@ -866,6 +866,40 @@ class Translator:
         """
         return self._translate_with_openrouter_debug(block_texts)
     
+    @staticmethod
+    def _strip_length_annotations(text: str) -> str:
+        """
+        Remove character-count annotations that some models (e.g. Gemini 2.5
+        Flash Lite) append to their output, such as " (23 chars)",
+        "[30 characters]" or a bare trailing "23 chars".
+
+        Args:
+            text: Translation text possibly containing a length annotation.
+
+        Returns:
+            Text with any length annotation removed.
+        """
+        if not text:
+            return text
+
+        # Parenthesised/bracketed counts anywhere in the block.
+        text = re.sub(
+            r'\s*[\(\[\{]\s*\d+\s*(?:chars?|characters?|znakova?|karaktera?)\s*[\)\]\}]',
+            '',
+            text,
+            flags=re.IGNORECASE,
+        )
+
+        # Bare count, usually appended at the very end of the block.
+        text = re.sub(
+            r'\s*[-–—:,]?\s*\d+\s*(?:chars?|characters?|znakova?|karaktera?)\s*$',
+            '',
+            text,
+            flags=re.IGNORECASE,
+        )
+
+        return text.strip()
+
     def _cleanup_block_markers(self, text: str, block_index: int) -> tuple[str, str]:
         """
         Enhanced cleanup to remove BLOCK_ markers from anywhere in text.
@@ -919,8 +953,14 @@ class Translator:
             
             cleanup_info += f"{block_index}. REMOVED INTERNAL MARKERS {matches} → '{text}'\n"
         
+        # Third, strip character-count annotations some models append (e.g. "(23 chars)")
+        length_clean = self._strip_length_annotations(text)
+        if length_clean != text:
+            cleanup_info += f"{block_index}. REMOVED LENGTH ANNOTATION → '{length_clean}'\n"
+            text = length_clean
+
         # If no markers were found or removed
-        if not removed and not matches:
+        if not removed and not matches and length_clean == original_text:
             cleanup_info += f"{block_index}. KEPT AS-IS → '{text}'\n"
         
         return text, cleanup_info
@@ -1288,8 +1328,8 @@ class Translator:
         
         shortened_text = ' '.join(shortened_text.split())  # Collapse multiple spaces
         
-        # Clean up "(XX chars)" artifacts from AI output
-        shortened_text = re.sub(r'\s*\(\d+\s*(?:chars?|characters?)\)\s*', '', shortened_text)
+        # Clean up char-count artifacts from AI output (e.g. "(30 chars)")
+        shortened_text = self._strip_length_annotations(shortened_text)
         
         return shortened_text
     
