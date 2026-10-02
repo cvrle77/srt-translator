@@ -804,6 +804,47 @@ def match_sentence_case(text: str, prev_text: Optional[str]) -> str:
     return text[:letter_idx] + fixed + text[letter_idx + 1:]
 
 
+def match_terminal_punctuation(text: str, original_text: str) -> str:
+    """
+    Force the terminal punctuation of a translation to follow the source block.
+
+    A source block ending with a comma is a sentence continuation, so the
+    translation must not be closed with a period (and vice versa). Only the
+    final punctuation mark is replaced; the wording is left untouched.
+
+    Args:
+        text: Translated text of the block.
+        original_text: Source text of the same block.
+
+    Returns:
+        Translation with its ending punctuation matched to the source. If the
+        source has no recognised terminal punctuation the text is unchanged.
+    """
+    if not text or not original_text:
+        return text
+
+    # Ignore trailing whitespace and closing quotes/brackets on the source.
+    source_core = original_text.rstrip().rstrip('"\'”’)]}')
+    if not source_core or source_core[-1] not in ".,!?;:…":
+        return text
+
+    desired = '...' if source_core[-1] == '…' else source_core[-1]
+
+    # Peel off any trailing closing quotes/brackets so the punctuation goes
+    # inside them, e.g. 'Mix."' -> 'Mix,"'.
+    stripped = text.rstrip()
+    tail = ""
+    while stripped and stripped[-1] in '"\'”’)]}':
+        tail = stripped[-1] + tail
+        stripped = stripped[:-1].rstrip()
+
+    body = stripped.rstrip('.,!?;:…').rstrip()
+    if not body:
+        return text
+
+    return body + desired + tail
+
+
 # ============================================================================
 # OpenRouter Translator
 # ============================================================================
@@ -1814,6 +1855,15 @@ class TranslationWorker(QThread):
                             block.characters_per_second = SrtParser.calculate_characters_per_second(block)
                             print(f"[DEBUG] Block {block.index} START extended by {extend}ms, CPS: {block.characters_per_second:.1f}")
             
+            # Enforce sentence continuity across blocks: terminal punctuation
+            # follows the source, and capitalization follows the previous block.
+            self.progress.emit("Matching sentence continuity across blocks...")
+            for i, block in enumerate(blocks):
+                source_text = " ".join(block.original_text_lines)
+                block.translated_text = match_terminal_punctuation(block.translated_text, source_text)
+                prev_text = blocks[i - 1].translated_text if i > 0 else None
+                block.translated_text = match_sentence_case(block.translated_text, prev_text)
+
             # Rebuild SRT
             self.progress.emit("Rebuilding SRT file...")
             output_srt = SrtParser.rebuild(blocks)
@@ -3391,7 +3441,9 @@ class SingleBlockRetranslationWorker(QThread):
                     shortened_cps = True
                     updated_block.was_shortened = True
             
-            # Step f: Match capitalization to the previous block's sentence context
+            # Step f: Match terminal punctuation to the source and capitalization
+            # to the previous block's sentence context
+            updated_block.translated_text = match_terminal_punctuation(updated_block.translated_text, original_text)
             prev_text = None
             for b in self.all_blocks:
                 if b.index == updated_block.index - 1:
@@ -5266,7 +5318,9 @@ class MainWindow(QMainWindow):
             translations, _ = translator.shorten_long_translations(translations)
             cleaned = translations[0]
 
-            # Match capitalization to the previous block's sentence context
+            # Follow the source block's terminal punctuation and the previous
+            # block's sentence context.
+            cleaned = match_terminal_punctuation(cleaned, text)
             prev_text = self.blocks[row - 1].translated_text if row > 0 else None
             cleaned = match_sentence_case(cleaned, prev_text)
 
