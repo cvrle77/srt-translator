@@ -1293,7 +1293,7 @@ class Translator:
             results = []
             for item in blocks_to_shorten:
                 shortened = self._shorten_for_cps(item['text'], item['target_chars'], item['duration_ms'])
-                results.append({'block_idx': item['block_idx'], 'shortened_text': shortened})
+                results.append({'block_idx': item['block_idx'], 'target_chars': item['target_chars'], 'shortened_text': shortened})
             return results
     
     def _shorten_batch_openrouter(self, user_message: str, blocks_to_shorten: List[dict]) -> List[dict]:
@@ -1365,7 +1365,7 @@ class Translator:
             # Don't truncate here - trust the API response
             # If it's too long, let it be and it will be handled later
             
-            results.append({'block_idx': item['block_idx'], 'shortened_text': shortened})
+            results.append({'block_idx': item['block_idx'], 'target_chars': item['target_chars'], 'shortened_text': shortened})
         
         return results
     
