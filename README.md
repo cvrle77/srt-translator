@@ -62,6 +62,25 @@ API keys are never written to `config.json`. If a key is found there from an old
 └── README.md
 ```
 
+## Versioning
+
+The version is **derived automatically from git tags** — there is no hardcoded
+number to bump by hand. `build.py` reads the nearest `vX.Y.Z` tag and bakes the
+result, together with the short git hash and build date, into `_version.py`; the
+app shows them in the window title and status bar.
+
+- On a tag: `1.2.0`
+- Commits after the last tag: next patch as a dev build, e.g. `1.2.1.dev7`
+- Uncommitted changes: `.dirty` suffix
+
+To cut a release:
+
+```bash
+git tag v1.2.0
+git push origin v1.2.0
+python build.py
+```
+
 ## License
 
 [MIT](LICENSE)

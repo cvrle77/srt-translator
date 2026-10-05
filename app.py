@@ -7,17 +7,59 @@ with enforced character-count-based line splitting rules.
 Supports OpenRouter API provider.
 """
 
-__version__ = "1.0.0"
-
 import sys
 import json
 import os
 import re
 import requests
 import argparse
+import datetime
+import subprocess
 from pathlib import Path
 from typing import List, Optional
 from dataclasses import dataclass
+
+
+def _read_version_info():
+    """Return (version, git_hash, build_date) for the running build.
+
+    Prefers the values baked into ``_version.py`` at build time. When running
+    from source without a build, derives them from git tags at runtime.
+    """
+    try:
+        from _version import VERSION, GIT_HASH, BUILD_DATE  # type: ignore
+        return VERSION, GIT_HASH, BUILD_DATE
+    except Exception:
+        pass
+
+    def _git(*args):
+        try:
+            return subprocess.check_output(
+                ["git", *args],
+                cwd=os.path.dirname(os.path.abspath(__file__)),
+                text=True,
+                stderr=subprocess.DEVNULL,
+            ).strip()
+        except Exception:
+            return ""
+
+    desc = _git("describe", "--tags", "--match", "v*", "--long", "--dirty")
+    version = "0.0.0"
+    match = re.match(r"v(\d+)\.(\d+)\.(\d+)-(\d+)-g([0-9a-f]+)(-dirty)?$", desc)
+    if match:
+        major, minor, patch, commits, _sha, dirty = match.groups()
+        if int(commits) == 0:
+            version = f"{major}.{minor}.{patch}"
+        else:
+            version = f"{major}.{minor}.{int(patch) + 1}.dev{commits}"
+        if dirty:
+            version += ".dirty"
+    elif desc:
+        version = desc.lstrip("v")
+    return version, _git("rev-parse", "--short", "HEAD"), datetime.date.today().isoformat()
+
+
+__version__, __git_hash__, __build_date__ = _read_version_info()
 
 
 # Handle PyQt6 imports with error handling for frozen environment
@@ -3596,7 +3638,7 @@ class MainWindow(QMainWindow):
         self.worker = None
         self.single_block_worker = None  # Track single block retranslation worker
         self.last_loaded_file = None  # Track last loaded file for save dialog
-        self.base_window_title = "SRT Subtitle Translator"  # Store base title
+        self.base_window_title = f"SRT Subtitle Translator v{__version__}"  # Store base title
         self.line_splitting_enabled = False  # Track line splitting toggle state
         self.original_srt_content = ""  # Buffer to preserve original unprocessed content
         self.blocks_with_cps = None  # Store blocks with CPS data for status bar enhancement
@@ -4035,7 +4077,9 @@ class MainWindow(QMainWindow):
         self.progress_bar.setStyleSheet("QProgressBar { border: 1px solid #ccc; border-radius: 3px; text-align: center; } QProgressBar::chunk { background-color: #4CAF50; }")
         
         self.status_bar.addPermanentWidget(self.progress_bar)
-        self.status_bar.showMessage(f"Ready — v{__version__}")
+        self.status_bar.showMessage(
+            f"Ready — v{__version__} (g{__git_hash__}, {__build_date__})"
+        )
     
     # ----------------------------------------------------------------
     # Table helpers
