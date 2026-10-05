@@ -872,6 +872,7 @@ class Translator:
         self.referer = referer
         self.app_title = app_title
         self.is_manual = is_manual
+        self.last_request_model = None  # Model actually sent in the last request
 
         # Load prompts from config
         self.reload_prompts()
@@ -1298,6 +1299,7 @@ class Translator:
     
     def _shorten_batch_openrouter(self, user_message: str, blocks_to_shorten: List[dict]) -> List[dict]:
         """Batch shorten texts using OpenRouter API."""
+        self.last_request_model = self.model
         system_message = (
             "You are shortening English subtitle text to achieve an acceptable characters-per-second rate. "
             "You are given the SOURCE (original language) line and its CURRENT TRANSLATION. "
@@ -1407,6 +1409,7 @@ class Translator:
     
     def _shorten_for_cps_openrouter(self, system_message: str, user_message: str) -> str:
         """Shorten text for CPS using OpenRouter API."""
+        self.last_request_model = self.model
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
@@ -1494,6 +1497,7 @@ class Translator:
     
     def _shorten_with_openrouter(self, user_message: str, num_texts: int) -> List[str]:
         """Shorten texts using OpenRouter API."""
+        self.last_request_model = self.model
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
@@ -1551,6 +1555,7 @@ class Translator:
 
     def _translate_with_openrouter_with_retry_debug(self, block_texts: List[str], max_retries: int = 2) -> tuple[List[str], str, str]:
         """Translate using OpenRouter API with retry logic and debug info."""
+        self.last_request_model = self.model
         
         for attempt in range(max_retries + 1):
             # Get translator prompt - use manual prompt if is_manual is True
@@ -3596,6 +3601,9 @@ class MainWindow(QMainWindow):
         self.original_srt_content = ""  # Buffer to preserve original unprocessed content
         self.blocks_with_cps = None  # Store blocks with CPS data for status bar enhancement
         self.original_blocks = None  # Store original parsed blocks for retranslation
+        self.provider = "openrouter"  # Provider used by retranslate before any full run
+        self.model = None  # Kept in sync with the model dropdown for retranslation
+        self.current_selected_block_index = None  # Row used by right-click retranslate
         MainWindow.current_config = None  # Shared config to avoid reloading from disk
         self.always_on_top = True  # Default always on top
         self.setup_ui()
@@ -3854,6 +3862,11 @@ class MainWindow(QMainWindow):
         
         # Load fixed models list
         self.load_fixed_openrouter_models()
+
+        # Keep self.model in sync with the dropdown so retranslation always
+        # uses the currently selected model.
+        self.openrouter_model_combo.currentTextChanged.connect(self.on_model_changed)
+        self.model = self.openrouter_model_combo.currentText() or None
         
         # Add to horizontal layout - all widgets flow naturally
         provider_layout.addWidget(self.openrouter_model_label)
@@ -4393,6 +4406,9 @@ class MainWindow(QMainWindow):
         """Start retranslation for the block at *row* in the table."""
         if not self.original_blocks or row >= len(self.original_blocks):
             print(f"[DEBUG] ERROR: invalid row {row} for retranslation")
+            self.status_bar.showMessage(
+                f"Retranslate skipped: no block at row {row} (stale state). Reopen the file."
+            )
             return
 
         self.current_selected_block_index = row
@@ -4413,6 +4429,19 @@ class MainWindow(QMainWindow):
         if models:
             self.openrouter_model_combo.addItems(models)
             self.openrouter_model_combo.setCurrentIndex(0)
+
+    def on_model_changed(self, model_name: str):
+        """Track the selected model so retranslation uses the current choice."""
+        self.model = model_name or None
+        print("[DEBUG] Model selection changed to: " + str(self.model))
+
+    def _reset_retranslate_state(self):
+        """Reset per-file state so retranslation never uses stale blocks/rows."""
+        import copy
+        self.original_blocks = copy.deepcopy(self.blocks) if self.blocks else None
+        self.blocks_with_cps = self.blocks
+        self.current_selected_block_index = None
+        self.single_block_worker = None
     
     def fetch_credit_balance(self):
         """Fetch OpenRouter credit balance."""
@@ -4673,6 +4702,7 @@ class MainWindow(QMainWindow):
                     print(f"[DEBUG] LOAD TIME - Parse: {t5-t4:.3f}s")
                     
                     self.populate_table(self.blocks)
+                    self._reset_retranslate_state()
                     t6 = time.time()
                     print(f"[DEBUG] LOAD TIME - Populate table: {t6-t5:.3f}s")
                     print(f"[DEBUG] LOAD TIME - TOTAL: {t6-t0:.3f}s")
@@ -4722,6 +4752,7 @@ class MainWindow(QMainWindow):
             try:
                 self.blocks = SrtParser().parse(content)
                 self.populate_table(self.blocks)
+                self._reset_retranslate_state()
                 print(f"[DEBUG] Parsed {len(self.blocks)} blocks, table populated")
             except Exception as parse_err:
                 print(f"[DEBUG] Parsing failed: {parse_err}")
@@ -5276,7 +5307,7 @@ class MainWindow(QMainWindow):
     
     def retranslate_selected_block(self):
         """Retranslate the currently selected block using EDITED text."""
-        if not hasattr(self, 'current_selected_block_index'):
+        if not hasattr(self, 'current_selected_block_index') or self.current_selected_block_index is None:
             QMessageBox.information(self, "No Selection", "Please select a block to retranslate.")
             return
 
@@ -5323,7 +5354,7 @@ class MainWindow(QMainWindow):
         try:
             translator = Translator(
                 provider=self.provider,
-                api_key=self.api_key,
+                api_key=api_key,
                 model=self.model,
                 referer=referer,
                 app_title=app_title,
@@ -5399,7 +5430,8 @@ class MainWindow(QMainWindow):
 
             char_count = len(block.translated_text.replace('\n', ''))
             cps = block.characters_per_second
-            self.status_bar.showMessage(f"Block {block.index} retranslated | {char_count} chars | {cps:.1f} c/s")
+            model_used = getattr(translator, "last_request_model", None) or self.model or "unknown model"
+            self.status_bar.showMessage(f"Block {block.index} retranslated using '{model_used}' | {char_count} chars | {cps:.1f} c/s")
 
         except Exception as e:
             QMessageBox.warning(self, "Retranslate Failed", str(e))
